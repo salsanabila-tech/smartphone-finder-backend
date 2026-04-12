@@ -1,0 +1,468 @@
+const express = require("express");
+const mysql = require("mysql2");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+require("dotenv").config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ======================
+// KONEKSI DATABASE
+// ======================
+const db = mysql.createConnection({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "spk_smartphone",
+});
+
+// cek koneksi
+db.connect((err) => {
+    if (err) {
+        console.log("Koneksi gagal:", err);
+    } else {
+        console.log("Koneksi MySQL berhasil 🔥");
+        
+        // Cek apakah tabel users sudah ada
+        db.query("SHOW TABLES LIKE 'users'", (err, result) => {
+            if (err) {
+                console.log("Error checking table:", err);
+                return;
+            }
+            
+            if (result.length === 0) {
+                // Tabel belum ada, buat baru
+                const createTableQuery = `
+                    CREATE TABLE users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(50) UNIQUE NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        password VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `;
+                
+                db.query(createTableQuery, (err) => {
+                    if (err) {
+                        console.log("Error membuat tabel users:", err);
+                    } else {
+                        console.log("Tabel users berhasil dibuat 🔥");
+                    }
+                });
+            } else {
+                // Tabel sudah ada, cek apakah kolom email ada
+                db.query("SHOW COLUMNS FROM users LIKE 'email'", (err, result) => {
+                    if (err) {
+                        console.log("Error checking column:", err);
+                        return;
+                    }
+                    
+                    if (result.length === 0) {
+                        // Kolom email belum ada, tambahkan
+                        db.query("ALTER TABLE users ADD COLUMN email VARCHAR(100) UNIQUE AFTER username", (err) => {
+                            if (err) {
+                                console.log("Error menambah kolom email:", err);
+                            } else {
+                                console.log("Kolom email berhasil ditambahkan 🔥");
+                            }
+                        });
+                    }
+                });
+                
+                // Cek apakah kolom created_at ada
+                db.query("SHOW COLUMNS FROM users LIKE 'created_at'", (err, result) => {
+                    if (err) {
+                        console.log("Error checking created_at column:", err);
+                        return;
+                    }
+                    
+                    if (result.length === 0) {
+                        // Kolom created_at belum ada, tambahkan
+                        db.query("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", (err) => {
+                            if (err) {
+                                console.log("Error menambah kolom created_at:", err);
+                            } else {
+                                console.log("Kolom created_at berhasil ditambahkan 🔥");
+                            }
+                        });
+                    } else {
+                        console.log("Tabel users sudah siap 🔥");
+                    }
+                });
+            }
+        });
+        
+        // Buat tabel user_activities untuk tracking
+        const createActivitiesTable = `
+            CREATE TABLE IF NOT EXISTS user_activities (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                activity_type VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `;
+        
+        db.query(createActivitiesTable, (err) => {
+            if (err) {
+                console.log("Error membuat tabel user_activities:", err);
+            } else {
+                console.log("Tabel user_activities siap 🔥");
+            }
+        });
+    }
+});
+
+// ======================
+// REGISTER
+// ======================
+app.post("/register", async (req, res) => {
+    console.log("Register request received:", req.body);
+    
+    const { username, email, password } = req.body;
+
+    // Validasi input
+    if (!username || !email || !password) {
+        console.log("Validation failed: missing fields");
+        return res.status(400).json({ message: "Semua field harus diisi!" });
+    }
+
+    if (password.length < 6) {
+        console.log("Validation failed: password too short");
+        return res.status(400).json({ message: "Password minimal 6 karakter!" });
+    }
+
+    // Cek apakah username sudah ada
+    db.query(
+        "SELECT * FROM users WHERE username = ? OR email = ?",
+        [username, email],
+        async (err, result) => {
+            if (err) {
+                console.error("Database error on SELECT:", err);
+                return res.status(500).json({ message: "Database error", error: err.message });
+            }
+
+            if (result.length > 0) {
+                console.log("User already exists");
+                return res.status(400).json({ message: "Username atau email sudah terdaftar!" });
+            }
+
+            try {
+                // Hash password
+                const hashedPassword = await bcrypt.hash(password, 10);
+                console.log("Password hashed successfully");
+
+                // Insert user baru
+                db.query(
+                    "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+                    [username, email, hashedPassword],
+                    (err, result) => {
+                        if (err) {
+                            console.error("Database error on INSERT:", err);
+                            return res.status(500).json({ message: "Gagal mendaftar", error: err.message });
+                        }
+
+                        console.log("User registered successfully:", result.insertId);
+                        res.status(201).json({ 
+                            message: "Registrasi berhasil!",
+                            userId: result.insertId 
+                        });
+                    }
+                );
+            } catch (error) {
+                console.error("Error hashing password:", error);
+                res.status(500).json({ message: "Server error", error: error.message });
+            }
+        }
+    );
+});
+
+// ======================
+// LOGIN
+// ======================
+app.post("/login", async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ message: "Username dan password harus diisi!" });
+    }
+
+    // Cek user di database
+    db.query(
+        "SELECT * FROM users WHERE username = ?",
+        [username],
+        async (err, result) => {
+            if (err) {
+                return res.status(500).json({ message: "Database error", error: err });
+            }
+
+            if (result.length === 0) {
+                return res.status(401).json({ message: "Username tidak ditemukan!" });
+            }
+
+            const user = result[0];
+
+            // Cek password
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ message: "Password salah!" });
+            }
+
+            // Buat token
+            const token = jwt.sign(
+                { id: user.id, username: user.username, email: user.email },
+                process.env.JWT_SECRET || "SECRET_KEY",
+                { expiresIn: "1h" }
+            );
+
+            res.json({ 
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email
+                }
+            });
+        }
+    );
+});
+
+// ======================
+// GET USER PROFILE
+// ======================
+app.get("/profile", (req, res) => {
+    console.log("Profile request received");
+    console.log("Headers:", req.headers);
+    
+    // Ambil token dari header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        console.log("No authorization header");
+        return res.status(401).json({ message: "Token tidak ditemukan!" });
+    }
+
+    console.log("Auth header:", authHeader);
+    const token = authHeader.split(" ")[1]; // Format: "Bearer TOKEN"
+    console.log("Token extracted:", token);
+
+    try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "SECRET_KEY");
+        console.log("Token decoded:", decoded);
+        
+        // Ambil data user dari database
+        db.query(
+            "SELECT id, username, email, created_at FROM users WHERE id = ?",
+            [decoded.id],
+            (err, result) => {
+                if (err) {
+                    console.error("Database error:", err);
+                    return res.status(500).json({ message: "Database error", error: err.message });
+                }
+
+                console.log("Query result:", result);
+
+                if (result.length === 0) {
+                    console.log("User not found");
+                    return res.status(404).json({ message: "User tidak ditemukan!" });
+                }
+
+                const user = result[0];
+                
+                const responseData = {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: "User",
+                    joinDate: new Date(user.created_at).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        year: 'numeric' 
+                    })
+                };
+                
+                console.log("Sending response:", responseData);
+                res.json(responseData);
+            }
+        );
+    } catch (error) {
+        console.error("Token verification error:", error);
+        return res.status(401).json({ message: "Token tidak valid!", error: error.message });
+    }
+});
+
+// ======================
+// GET USER STATISTICS
+// ======================
+app.get("/user-stats", (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        return res.status(401).json({ message: "Token tidak ditemukan!" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "SECRET_KEY");
+        
+        // Hitung total analyses
+        db.query(
+            "SELECT COUNT(*) as total FROM user_activities WHERE user_id = ? AND activity_type = 'analysis'",
+            [decoded.id],
+            (err, analysisResult) => {
+                if (err) {
+                    return res.status(500).json({ message: "Database error", error: err.message });
+                }
+
+                // Hitung analyses minggu ini
+                db.query(
+                    "SELECT COUNT(*) as thisWeek FROM user_activities WHERE user_id = ? AND activity_type = 'analysis' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+                    [decoded.id],
+                    (err, weekResult) => {
+                        if (err) {
+                            return res.status(500).json({ message: "Database error", error: err.message });
+                        }
+
+                        res.json({
+                            totalAnalyses: analysisResult[0].total,
+                            savedItems: 0, // Bisa dikembangkan nanti
+                            comparisons: 0, // Bisa dikembangkan nanti
+                            thisWeek: weekResult[0].thisWeek
+                        });
+                    }
+                );
+            }
+        );
+    } catch (error) {
+        return res.status(401).json({ message: "Token tidak valid!", error: error.message });
+    }
+});
+
+// ======================
+// TRACK USER ACTIVITY
+// ======================
+app.post("/track-activity", (req, res) => {
+    const authHeader = req.headers.authorization;
+    const { activityType } = req.body;
+    
+    if (!authHeader) {
+        return res.status(401).json({ message: "Token tidak ditemukan!" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "SECRET_KEY");
+        
+        db.query(
+            "INSERT INTO user_activities (user_id, activity_type) VALUES (?, ?)",
+            [decoded.id, activityType],
+            (err, result) => {
+                if (err) {
+                    return res.status(500).json({ message: "Database error", error: err.message });
+                }
+
+                res.json({ message: "Activity tracked successfully" });
+            }
+        );
+    } catch (error) {
+        return res.status(401).json({ message: "Token tidak valid!", error: error.message });
+    }
+});
+
+// ======================
+// GET DATA HP
+// ======================
+app.get("/smartphones", (req, res) => {
+    db.query("SELECT * FROM smartphone", (err, result) => {
+        if (err) return res.send(err);
+        res.send(result);
+    });
+});
+
+// ======================
+// TAMBAH DATA HP
+// ======================
+app.post("/smartphones", (req, res) => {
+    const { nama_hp, harga, berat, kamera, keunikan, ram } = req.body;
+
+    const sql = `
+    INSERT INTO smartphone (user_id, nama_hp, harga, berat, kamera, keunikan, ram)
+    VALUES (1, ?, ?, ?, ?, ?, ?)
+  `;
+
+    db.query(
+        sql,
+        [nama_hp, harga, berat, kamera, keunikan, ram],
+        (err, result) => {
+            if (err) return res.send(err);
+            res.send("Data berhasil ditambahkan");
+        },
+    );
+});
+
+// ======================
+// DELETE DATA
+// ======================
+app.delete("/smartphones/:id", (req, res) => {
+    db.query("DELETE FROM smartphone WHERE id=?", [req.params.id], (err) => {
+        if (err) return res.send(err);
+        res.send("Data berhasil dihapus");
+    });
+});
+
+// ======================
+// SAW (PERHITUNGAN SPK)
+// ======================
+app.get("/saw", (req, res) => {
+    db.query("SELECT * FROM smartphone", (err, data) => {
+        if (err) return res.send(err);
+
+        if (data.length === 0) {
+            return res.send([]);
+        }
+
+        let minHarga = Math.min(...data.map((d) => d.harga));
+        let minBerat = Math.min(...data.map((d) => d.berat));
+
+        let maxKamera = Math.max(...data.map((d) => d.kamera));
+        let maxKeunikan = Math.max(...data.map((d) => d.keunikan));
+        let maxRam = Math.max(...data.map((d) => d.ram));
+
+        let hasil = data.map((d) => {
+            let rHarga = minHarga / d.harga;
+            let rBerat = minBerat / d.berat;
+            let rKamera = d.kamera / maxKamera;
+            let rKeunikan = d.keunikan / maxKeunikan;
+            let rRam = d.ram / maxRam;
+
+            let score =
+                0.3 * rHarga +
+                0.15 * rBerat +
+                0.25 * rKamera +
+                0.1 * rKeunikan +
+                0.2 * rRam;
+
+            return {
+                nama_hp: d.nama_hp,
+                score: score,
+            };
+        });
+
+        hasil.sort((a, b) => b.score - a.score);
+
+        res.send(hasil);
+    });
+});
+
+// ======================
+// JALANKAN SERVER
+// ======================
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Server jalan di http://localhost:${PORT} 🔥`);
+});
