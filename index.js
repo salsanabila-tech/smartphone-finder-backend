@@ -6,7 +6,14 @@ const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://smartphone-finder-backend-production.up.railway.app'
+    ],
+    credentials: true
+}));
 app.use(express.json());
 
 // ======================
@@ -93,6 +100,29 @@ db.connect((err) => {
                         console.log("Tabel users sudah siap 🔥");
                     }
                 });
+            }
+        });
+        
+        // Buat tabel smartphone jika belum ada
+        const createSmartphoneTable = `
+            CREATE TABLE IF NOT EXISTS smartphone (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT DEFAULT 1,
+                nama_hp VARCHAR(100) NOT NULL,
+                harga INT NOT NULL,
+                berat INT NOT NULL,
+                kamera INT NOT NULL,
+                keunikan INT NOT NULL,
+                ram INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `;
+        
+        db.query(createSmartphoneTable, (err) => {
+            if (err) {
+                console.log("Error membuat tabel smartphone:", err);
+            } else {
+                console.log("Tabel smartphone siap 🔥");
             }
         });
         
@@ -379,9 +409,22 @@ app.post("/track-activity", (req, res) => {
 // GET DATA HP
 // ======================
 app.get("/smartphones", (req, res) => {
+    console.log("GET /smartphones request received");
+    
     db.query("SELECT * FROM smartphone", (err, result) => {
-        if (err) return res.send(err);
-        res.send(result);
+        if (err) {
+            console.error("Error fetching smartphones:", err);
+            return res.status(500).json({ 
+                error: "Database error", 
+                message: err.message 
+            });
+        }
+        
+        console.log("Smartphones fetched:", result.length, "items");
+        
+        // Pastikan selalu return array
+        const smartphones = Array.isArray(result) ? result : [];
+        res.json(smartphones);
     });
 });
 
@@ -389,20 +432,51 @@ app.get("/smartphones", (req, res) => {
 // TAMBAH DATA HP
 // ======================
 app.post("/smartphones", (req, res) => {
+    console.log("POST /smartphones request received:", req.body);
+    
     const { nama_hp, harga, berat, kamera, keunikan, ram } = req.body;
 
+    // Validasi input
+    if (!nama_hp || !harga || !berat || !kamera || !keunikan || !ram) {
+        return res.status(400).json({ 
+            error: "Validation error",
+            message: "Semua field harus diisi!" 
+        });
+    }
+
     const sql = `
-    INSERT INTO smartphone (user_id, nama_hp, harga, berat, kamera, keunikan, ram)
-    VALUES (1, ?, ?, ?, ?, ?, ?)
-  `;
+        INSERT INTO smartphone (user_id, nama_hp, harga, berat, kamera, keunikan, ram)
+        VALUES (1, ?, ?, ?, ?, ?, ?)
+    `;
 
     db.query(
         sql,
         [nama_hp, harga, berat, kamera, keunikan, ram],
         (err, result) => {
-            if (err) return res.send(err);
-            res.send("Data berhasil ditambahkan");
-        },
+            if (err) {
+                console.error("Error inserting smartphone:", err);
+                return res.status(500).json({ 
+                    error: "Database error",
+                    message: err.message 
+                });
+            }
+            
+            console.log("Smartphone added successfully, ID:", result.insertId);
+            
+            res.status(201).json({ 
+                message: "Data berhasil ditambahkan",
+                id: result.insertId,
+                data: {
+                    id: result.insertId,
+                    nama_hp,
+                    harga,
+                    berat,
+                    kamera,
+                    keunikan,
+                    ram
+                }
+            });
+        }
     );
 });
 
@@ -410,9 +484,19 @@ app.post("/smartphones", (req, res) => {
 // DELETE DATA
 // ======================
 app.delete("/smartphones/:id", (req, res) => {
-    db.query("DELETE FROM smartphone WHERE id=?", [req.params.id], (err) => {
-        if (err) return res.send(err);
-        res.send("Data berhasil dihapus");
+    console.log("DELETE /smartphones request for ID:", req.params.id);
+    
+    db.query("DELETE FROM smartphone WHERE id=?", [req.params.id], (err, result) => {
+        if (err) {
+            console.error("Error deleting smartphone:", err);
+            return res.status(500).json({ 
+                error: "Database error",
+                message: err.message 
+            });
+        }
+        
+        console.log("Smartphone deleted successfully");
+        res.json({ message: "Data berhasil dihapus" });
     });
 });
 
@@ -420,11 +504,22 @@ app.delete("/smartphones/:id", (req, res) => {
 // SAW (PERHITUNGAN SPK)
 // ======================
 app.get("/saw", (req, res) => {
+    console.log("GET /saw request received");
+    
     db.query("SELECT * FROM smartphone", (err, data) => {
-        if (err) return res.send(err);
+        if (err) {
+            console.error("Error in SAW calculation:", err);
+            return res.status(500).json({ 
+                error: "Database error",
+                message: err.message 
+            });
+        }
+
+        console.log("SAW calculation for", data.length, "smartphones");
 
         if (data.length === 0) {
-            return res.send([]);
+            console.log("No smartphones found, returning empty array");
+            return res.json([]);
         }
 
         let minHarga = Math.min(...data.map((d) => d.harga));
@@ -449,6 +544,7 @@ app.get("/saw", (req, res) => {
                 0.2 * rRam;
 
             return {
+                id: d.id,
                 nama_hp: d.nama_hp,
                 score: score,
             };
@@ -456,7 +552,8 @@ app.get("/saw", (req, res) => {
 
         hasil.sort((a, b) => b.score - a.score);
 
-        res.send(hasil);
+        console.log("SAW calculation complete, top score:", hasil[0]?.score);
+        res.json(hasil);
     });
 });
 
