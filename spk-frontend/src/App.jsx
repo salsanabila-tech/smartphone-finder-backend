@@ -78,6 +78,27 @@ export default function App() {
         fetchData();
     }, []);
 
+    // Track comparison ketika ranking muncul
+    useEffect(() => {
+        if (ranking.length > 0) {
+            const token = localStorage.getItem("token");
+            if (token) {
+                // Track comparison activity
+                axios.post(
+                    `${API_URL}/track-activity`,
+                    { activityType: "comparison" },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                ).catch(err => {
+                    console.error("Error tracking comparison:", err);
+                });
+            }
+        }
+    }, [ranking]);
+
     const handleDelete = async (id) => {
         try {
             await axios.delete(`${API_URL}/smartphones/${id}`);
@@ -137,6 +158,24 @@ export default function App() {
             });
 
             fetchData();
+            
+            // Track activity: saved item
+            const token = localStorage.getItem("token");
+            if (token) {
+                try {
+                    await axios.post(
+                        `${API_URL}/track-activity`,
+                        { activityType: "saved_item" },
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        }
+                    );
+                } catch (err) {
+                    console.error("Error tracking saved item:", err);
+                }
+            }
         } catch (err) {
             console.error("CREATE ERROR:", err);
             alert("Gagal menambahkan data");

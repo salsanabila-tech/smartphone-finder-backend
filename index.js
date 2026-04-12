@@ -352,21 +352,43 @@ app.get("/user-stats", (req, res) => {
                     return res.status(500).json({ message: "Database error", error: err.message });
                 }
 
-                // Hitung analyses minggu ini
+                // Hitung saved items
                 db.query(
-                    "SELECT COUNT(*) as thisWeek FROM user_activities WHERE user_id = ? AND activity_type = 'analysis' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+                    "SELECT COUNT(*) as savedItems FROM user_activities WHERE user_id = ? AND activity_type = 'saved_item'",
                     [decoded.id],
-                    (err, weekResult) => {
+                    (err, savedResult) => {
                         if (err) {
                             return res.status(500).json({ message: "Database error", error: err.message });
                         }
 
-                        res.json({
-                            totalAnalyses: analysisResult[0].total,
-                            savedItems: 0, // Bisa dikembangkan nanti
-                            comparisons: 0, // Bisa dikembangkan nanti
-                            thisWeek: weekResult[0].thisWeek
-                        });
+                        // Hitung comparisons
+                        db.query(
+                            "SELECT COUNT(*) as comparisons FROM user_activities WHERE user_id = ? AND activity_type = 'comparison'",
+                            [decoded.id],
+                            (err, comparisonResult) => {
+                                if (err) {
+                                    return res.status(500).json({ message: "Database error", error: err.message });
+                                }
+
+                                // Hitung analyses minggu ini
+                                db.query(
+                                    "SELECT COUNT(*) as thisWeek FROM user_activities WHERE user_id = ? AND activity_type = 'analysis' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+                                    [decoded.id],
+                                    (err, weekResult) => {
+                                        if (err) {
+                                            return res.status(500).json({ message: "Database error", error: err.message });
+                                        }
+
+                                        res.json({
+                                            totalAnalyses: analysisResult[0].total,
+                                            savedItems: savedResult[0].savedItems,
+                                            comparisons: comparisonResult[0].comparisons,
+                                            thisWeek: weekResult[0].thisWeek
+                                        });
+                                    }
+                                );
+                            }
+                        );
                     }
                 );
             }
