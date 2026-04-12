@@ -33,6 +33,11 @@ import Profile from "./Profile";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
+const API_URL = 'https://smartphone-finder-backend-production.up.railway.app';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+console.log('API_URL:', API_URL); // Debug: cek apakah env terbaca
+
 export default function App() {
     const [isLogin, setIsLogin] = useState(!!localStorage.getItem("token"));
     const [smartphones, setSmartphones] = useState([]);
@@ -56,10 +61,17 @@ export default function App() {
 
     const fetchData = async () => {
         try {
-            const res = await axios.get("http://localhost:3001/smartphones");
-            setSmartphones(res.data);
+            const res = await axios.get(`${API_URL}/smartphones`);
+            // Pastikan response adalah array
+            if (Array.isArray(res.data)) {
+                setSmartphones(res.data);
+            } else {
+                console.error('Response bukan array:', res.data);
+                setSmartphones([]);
+            }
         } catch (err) {
             console.error("ERROR FETCH:", err);
+            setSmartphones([]); // Set empty array kalau error
         }
     };
 
@@ -69,7 +81,7 @@ export default function App() {
 
     const handleDelete = async (id) => {
         try {
-            await axios.delete(`http://localhost:3001/smartphones/${id}`);
+            await axios.delete(`${API_URL}/smartphones/${id}`);
             fetchData();
         } catch (err) {
             console.error("DELETE ERROR:", err);
@@ -114,7 +126,7 @@ export default function App() {
         }
 
         try {
-            await axios.post("http://localhost:3001/smartphones", form);
+            await axios.post(`${API_URL}/smartphones`, form);
 
             setForm({
                 nama_hp: "",
@@ -134,15 +146,24 @@ export default function App() {
 
     const getRanking = async () => {
         try {
-            const res = await axios.get("http://localhost:3001/saw");
-            setRanking(res.data);
+            const res = await axios.get(`${API_URL}/saw`);
+            
+            // Pastikan response adalah array
+            if (Array.isArray(res.data)) {
+                setRanking(res.data);
+            } else {
+                console.error('SAW response bukan array:', res.data);
+                setRanking([]);
+                alert('Gagal mendapatkan ranking. Pastikan ada data smartphone terlebih dahulu.');
+                return;
+            }
             
             // Track activity
             const token = localStorage.getItem("token");
             if (token) {
                 try {
                     await axios.post(
-                        "http://localhost:3001/track-activity",
+                        `${API_URL}/track-activity`,
                         { activityType: "analysis" },
                         {
                             headers: {
@@ -156,6 +177,7 @@ export default function App() {
             }
         } catch (err) {
             console.error("ERROR SAW:", err);
+            setRanking([]);
             alert("Backend error / belum jalan!");
         }
     };
@@ -166,11 +188,11 @@ export default function App() {
         : "rgba(15,23,42,0.08)";
 
     const chartData = {
-        labels: ranking.map((r) => r.nama_hp),
+        labels: Array.isArray(ranking) ? ranking.map((r) => r.nama_hp) : [],
         datasets: [
             {
                 label: "Score",
-                data: ranking.map((r) => r.score),
+                data: Array.isArray(ranking) ? ranking.map((r) => r.score) : [],
                 backgroundColor: [
                     "#22c55e",
                     "#3b82f6",
