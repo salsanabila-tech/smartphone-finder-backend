@@ -10,7 +10,10 @@ app.use(cors({
     origin: [
         'http://localhost:5173',
         'http://localhost:3000',
-        'https://smartphone-finder-backend-production.up.railway.app'
+        'https://smartphone-finder-backend-production.up.railway.app',
+        'https://smartphone-finder-backend.vercel.app',
+        'https://smartphone-finder-backend-git-main-salsanabila-techs-projects.vercel.app',
+        'https://smartphone-finder-backend-iqusm8vg1-salsanabila-techs-projects.vercel.app'
     ],
     credentials: true
 }));
