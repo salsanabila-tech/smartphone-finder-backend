@@ -33,8 +33,7 @@ import Profile from "./Profile";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const API_URL = 'https://smartphone-finder-backend-production.up.railway.app';
-// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://smartphone-finder-backend-production.up.railway.app';
 
 console.log('API_URL:', API_URL); // Debug: cek apakah env terbaca
 

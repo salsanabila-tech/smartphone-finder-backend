@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { User, Mail, Calendar, Shield, ArrowLeft, Sparkles, Award, Clock, Loader } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://smartphone-finder-backend-production.up.railway.app';
+
 export default function Profile({ onBack, isDark }) {
     const [userData, setUserData] = useState(null);
     const [userStats, setUserStats] = useState({
@@ -24,7 +26,7 @@ export default function Profile({ onBack, isDark }) {
             
             if (!token) return;
 
-            const response = await axios.get("http://localhost:3001/user-stats", {
+            const response = await axios.get(`${API_URL}/user-stats`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -48,7 +50,7 @@ export default function Profile({ onBack, isDark }) {
 
             console.log("Fetching profile with token:", token);
 
-            const response = await axios.get("http://localhost:3001/profile", {
+            const response = await axios.get(`${API_URL}/profile`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }

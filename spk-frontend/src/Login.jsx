@@ -2,6 +2,8 @@ import { useState } from "react";
 import axios from "axios";
 import { Lock, User, Sparkles, Rocket, Eye, EyeOff } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://smartphone-finder-backend-production.up.railway.app';
+
 export default function Login({ onLogin, isDark, onSwitchToRegister }) {
     const [form, setForm] = useState({
         username: "",
@@ -13,7 +15,7 @@ export default function Login({ onLogin, isDark, onSwitchToRegister }) {
         e.preventDefault();
 
         try {
-            const res = await axios.post("http://localhost:3001/login", form);
+            const res = await axios.post(`${API_URL}/login`, form);
             localStorage.setItem("token", res.data.token);
             onLogin();
         } catch (err) {

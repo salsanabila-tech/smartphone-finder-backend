@@ -2,6 +2,8 @@ import { useState } from "react";
 import axios from "axios";
 import { Lock, User, Sparkles, Rocket, Eye, EyeOff, Mail } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://smartphone-finder-backend-production.up.railway.app';
+
 export default function Register({ onSwitchToLogin, isDark }) {
     const [form, setForm] = useState({
         username: "",
@@ -26,7 +28,7 @@ export default function Register({ onSwitchToLogin, isDark }) {
         }
 
         try {
-            await axios.post("http://localhost:3001/register", {
+            await axios.post(`${API_URL}/register`, {
                 username: form.username,
                 email: form.email,
                 password: form.password,
