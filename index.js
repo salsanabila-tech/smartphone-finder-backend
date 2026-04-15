@@ -20,6 +20,37 @@ app.use(cors({
 app.use(express.json());
 
 // ======================
+// HEALTH CHECK
+// ======================
+app.get("/", (req, res) => {
+    res.json({ 
+        status: "OK", 
+        message: "Smartphone Finder API is running",
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get("/health", (req, res) => {
+    // Test database connection
+    db.ping((err) => {
+        if (err) {
+            console.error("Health check failed:", err);
+            return res.status(503).json({
+                status: "ERROR",
+                database: "disconnected",
+                error: err.message
+            });
+        }
+        
+        res.json({
+            status: "OK",
+            database: "connected",
+            timestamp: new Date().toISOString()
+        });
+    });
+});
+
+// ======================
 // KONEKSI DATABASE
 // ======================
 const db = mysql.createConnection({
@@ -33,9 +64,20 @@ const db = mysql.createConnection({
 // cek koneksi
 db.connect((err) => {
     if (err) {
-        console.log("Koneksi gagal:", err);
+        console.error("❌ Koneksi MySQL GAGAL!");
+        console.error("Error Code:", err.code);
+        console.error("Error Message:", err.message);
+        console.error("Error Stack:", err.stack);
+        console.error("DB Config:", {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT
+        });
+        // Jangan exit, biarkan Railway restart otomatis
     } else {
-        console.log("Koneksi MySQL berhasil 🔥");
+        console.log("✅ Koneksi MySQL berhasil!");
+        console.log("Connected to:", process.env.DB_HOST);
         
         // Cek apakah tabel users sudah ada
         db.query("SHOW TABLES LIKE 'users'", (err, result) => {
