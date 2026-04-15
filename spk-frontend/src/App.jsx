@@ -25,6 +25,10 @@ import {
     LogOut,
     User,
     TrendingUp,
+    X,
+    Info,
+    Award,
+    CheckCircle,
 } from "lucide-react";
 import { FaMedal } from "react-icons/fa";
 import Login from "./Login";
@@ -48,6 +52,10 @@ export default function App() {
     });
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [showRegister, setShowRegister] = useState(false);
+    
+    // Modal state untuk detail ranking
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedPhone, setSelectedPhone] = useState(null);
 
     const [form, setForm] = useState({
         nama_hp: "",
@@ -218,6 +226,16 @@ export default function App() {
             setRanking([]);
             alert("Backend error / belum jalan!");
         }
+    };
+
+    const handleShowDetail = (phone) => {
+        setSelectedPhone(phone);
+        setShowDetailModal(true);
+    };
+
+    const handleCloseDetail = () => {
+        setShowDetailModal(false);
+        setSelectedPhone(null);
     };
 
     const chartTextColor = isDark ? "#d1d5db" : "#374151";
@@ -422,7 +440,8 @@ export default function App() {
                                             {ranking.slice(0, 3).map((item, index) => (
                                                 <div
                                                     key={item.id ?? item.nama_hp ?? index}
-                                                    className="group flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/30 border border-slate-200 dark:border-slate-700 hover:border-green-400 dark:hover:border-green-500 transition-all hover:scale-[1.02] hover:shadow-lg"
+                                                    onClick={() => handleShowDetail(item)}
+                                                    className="group flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800/30 border border-slate-200 dark:border-slate-700 hover:border-green-400 dark:hover:border-green-500 transition-all hover:scale-[1.02] hover:shadow-lg cursor-pointer"
                                                 >
                                                     <div className="flex items-center gap-4">
                                                         <div className={`flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
@@ -629,6 +648,226 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+
+                {/* Modal Detail Ranking */}
+                {showDetailModal && selectedPhone && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={handleCloseDetail}>
+                        <div 
+                            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="sticky top-0 bg-gradient-to-r from-green-400 to-emerald-500 p-6 rounded-t-2xl">
+                                <button
+                                    onClick={handleCloseDetail}
+                                    className="absolute top-4 right-4 p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all"
+                                >
+                                    <X className="w-5 h-5 text-white" />
+                                </button>
+                                
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                                        <Smartphone className="w-8 h-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white">{selectedPhone.nama_hp}</h2>
+                                        <p className="text-white/80 text-sm mt-1">Detail Analisis & Breakdown Score</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 space-y-6">
+                                {/* Total Score */}
+                                <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border-2 border-green-200 dark:border-green-800">
+                                    <Award className="w-12 h-12 mx-auto mb-3 text-green-500" />
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Total Score</p>
+                                    <p className="text-5xl font-bold text-green-500">{Number(selectedPhone.score).toFixed(3)}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                        Ranking: #{ranking.findIndex(r => r.id === selectedPhone.id) + 1} dari {ranking.length}
+                                    </p>
+                                </div>
+
+                                {/* Spesifikasi */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
+                                        <Info className="w-5 h-5 text-green-500" />
+                                        Spesifikasi
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Banknote className="w-4 h-4 text-green-500" />
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">Harga</p>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-800 dark:text-white">
+                                                Rp {selectedPhone.data.harga.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Cpu className="w-4 h-4 text-blue-500" />
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">RAM</p>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-800 dark:text-white">
+                                                {selectedPhone.data.ram} GB
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Camera className="w-4 h-4 text-purple-500" />
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">Kamera</p>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-800 dark:text-white">
+                                                {selectedPhone.data.kamera} MP
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Weight className="w-4 h-4 text-orange-500" />
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">Berat</p>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-800 dark:text-white">
+                                                {selectedPhone.data.berat} gram
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Breakdown Score */}
+                                <div>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
+                                        <BarChart3 className="w-5 h-5 text-green-500" />
+                                        Breakdown Score per Kriteria
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {/* Harga */}
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Banknote className="w-4 h-4 text-green-500" />
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Harga (30%)</span>
+                                                </div>
+                                                <span className="font-bold text-green-500">{Number(selectedPhone.breakdown.harga).toFixed(3)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                                <div 
+                                                    className="bg-green-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${(selectedPhone.breakdown.harga / 0.3) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                {selectedPhone.data.harga === selectedPhone.reference.minHarga 
+                                                    ? "✓ Harga termurah! Nilai maksimal." 
+                                                    : `Harga lebih tinggi ${((selectedPhone.data.harga / selectedPhone.reference.minHarga - 1) * 100).toFixed(0)}% dari termurah.`}
+                                            </p>
+                                        </div>
+
+                                        {/* RAM */}
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Cpu className="w-4 h-4 text-blue-500" />
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">RAM (20%)</span>
+                                                </div>
+                                                <span className="font-bold text-blue-500">{Number(selectedPhone.breakdown.ram).toFixed(3)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                                <div 
+                                                    className="bg-blue-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${(selectedPhone.breakdown.ram / 0.2) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                {selectedPhone.data.ram === selectedPhone.reference.maxRam 
+                                                    ? "✓ RAM terbesar! Nilai maksimal." 
+                                                    : `RAM ${((1 - selectedPhone.data.ram / selectedPhone.reference.maxRam) * 100).toFixed(0)}% lebih kecil dari terbesar.`}
+                                            </p>
+                                        </div>
+
+                                        {/* Kamera */}
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Camera className="w-4 h-4 text-purple-500" />
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Kamera (25%)</span>
+                                                </div>
+                                                <span className="font-bold text-purple-500">{Number(selectedPhone.breakdown.kamera).toFixed(3)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                                <div 
+                                                    className="bg-purple-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${(selectedPhone.breakdown.kamera / 0.25) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                {selectedPhone.data.kamera === selectedPhone.reference.maxKamera 
+                                                    ? "✓ Kamera terbaik! Nilai maksimal." 
+                                                    : `Kamera ${((1 - selectedPhone.data.kamera / selectedPhone.reference.maxKamera) * 100).toFixed(0)}% lebih rendah dari terbaik.`}
+                                            </p>
+                                        </div>
+
+                                        {/* Berat */}
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Weight className="w-4 h-4 text-orange-500" />
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Berat (15%)</span>
+                                                </div>
+                                                <span className="font-bold text-orange-500">{Number(selectedPhone.breakdown.berat).toFixed(3)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                                <div 
+                                                    className="bg-orange-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${(selectedPhone.breakdown.berat / 0.15) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                {selectedPhone.data.berat === selectedPhone.reference.minBerat 
+                                                    ? "✓ Paling ringan! Nilai maksimal." 
+                                                    : `Berat ${((selectedPhone.data.berat / selectedPhone.reference.minBerat - 1) * 100).toFixed(0)}% lebih berat dari teringan.`}
+                                            </p>
+                                        </div>
+
+                                        {/* Keunikan */}
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Keunikan (10%)</span>
+                                                </div>
+                                                <span className="font-bold text-yellow-500">{Number(selectedPhone.breakdown.keunikan).toFixed(3)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                                                <div 
+                                                    className="bg-yellow-500 h-2 rounded-full transition-all"
+                                                    style={{ width: `${(selectedPhone.breakdown.keunikan / 0.1) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                Nilai keunikan: {selectedPhone.data.keunikan}/10
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Kesimpulan */}
+                                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                                    <div className="flex items-start gap-3">
+                                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                                        <div>
+                                            <h4 className="font-semibold text-slate-800 dark:text-white mb-2">Kesimpulan</h4>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                                {selectedPhone.nama_hp} mendapat score <span className="font-bold text-green-500">{Number(selectedPhone.score).toFixed(3)}</span> berdasarkan perhitungan SAW dengan bobot: Harga (30%), Kamera (25%), RAM (20%), Berat (15%), dan Keunikan (10%). 
+                                                {ranking.findIndex(r => r.id === selectedPhone.id) === 0 && " Smartphone ini merupakan pilihan terbaik berdasarkan kriteria yang ada!"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

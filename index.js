@@ -603,17 +603,50 @@ app.get("/saw", (req, res) => {
             let rKeunikan = d.keunikan / maxKeunikan;
             let rRam = d.ram / maxRam;
 
-            let score =
-                0.3 * rHarga +
-                0.15 * rBerat +
-                0.25 * rKamera +
-                0.1 * rKeunikan +
-                0.2 * rRam;
+            let scoreHarga = 0.3 * rHarga;
+            let scoreBerat = 0.15 * rBerat;
+            let scoreKamera = 0.25 * rKamera;
+            let scoreKeunikan = 0.1 * rKeunikan;
+            let scoreRam = 0.2 * rRam;
+
+            let totalScore = scoreHarga + scoreBerat + scoreKamera + scoreKeunikan + scoreRam;
 
             return {
                 id: d.id,
                 nama_hp: d.nama_hp,
-                score: score,
+                score: totalScore,
+                // Data asli
+                data: {
+                    harga: d.harga,
+                    berat: d.berat,
+                    kamera: d.kamera,
+                    keunikan: d.keunikan,
+                    ram: d.ram
+                },
+                // Nilai normalisasi
+                normalized: {
+                    harga: rHarga,
+                    berat: rBerat,
+                    kamera: rKamera,
+                    keunikan: rKeunikan,
+                    ram: rRam
+                },
+                // Score per kriteria
+                breakdown: {
+                    harga: scoreHarga,
+                    berat: scoreBerat,
+                    kamera: scoreKamera,
+                    keunikan: scoreKeunikan,
+                    ram: scoreRam
+                },
+                // Min/Max untuk referensi
+                reference: {
+                    minHarga,
+                    minBerat,
+                    maxKamera,
+                    maxKeunikan,
+                    maxRam
+                }
             };
         });
 
