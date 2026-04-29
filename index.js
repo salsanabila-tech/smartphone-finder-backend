@@ -7,14 +7,31 @@ require("dotenv").config();
 
 const app = express();
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://smartphone-finder-backend-production.up.railway.app',
-        'https://smartphone-finder-backend.vercel.app',
-        'https://smartphone-finder-backend-git-main-salsanabila-techs-projects.vercel.app',
-        'https://smartphone-finder-backend-iqusm8vg1-salsanabila-techs-projects.vercel.app'
-    ],
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://localhost:5174',
+            'https://smartphone-finder-backend-production.up.railway.app',
+            'https://smartphone-finder-backend.vercel.app',
+            'https://smartphone-finder-backend-git-main-salsanabila-techs-projects.vercel.app',
+            'https://smartphone-finder-backend-iqusm8vg1-salsanabila-techs-projects.vercel.app'
+        ];
+        
+        // Allow all localhost origins for development
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+            return callback(null, true);
+        }
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(express.json());
